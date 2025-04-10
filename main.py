@@ -1,12 +1,42 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for
 import numpy as np
 from scipy.optimize import linprog
+import os
+import json
+from datetime import datetime
 
 app = Flask(__name__)
 
-game_description = """
-Каждый игрок выбирает уровень сотрудничества от 1 (предательство) до 5 (полное доверие). Выплаты зависят от комбинации: чем выше уровень доверия, тем выше риск, но и выше выигрыш.
-"""
+# Конфигурация
+HISTORY_DIR = 'history'
+os.makedirs(HISTORY_DIR, exist_ok=True)
+
+
+def save_calculation(matrix, result):
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{HISTORY_DIR}/calculation_{timestamp}.json"
+
+    data = {
+        'timestamp': timestamp,
+        'matrix': matrix,
+        'result': result
+    }
+
+    with open(filename, 'w') as f:
+        json.dump(data, f)
+
+    return filename
+
+
+def load_history():
+    history = []
+    for filename in sorted(os.listdir(HISTORY_DIR), reverse=True):
+        if filename.endswith('.json'):
+            with open(f"{HISTORY_DIR}/{filename}", 'r') as f:
+                data = json.load(f)
+                history.append(data)
+    return history
+
 
 def find_saddle_point(matrix):
     matrix_np = np.array(matrix)
@@ -19,11 +49,13 @@ def find_saddle_point(matrix):
                 return (i, j, matrix[i][j])  # возвращаем координаты и значение
     return None
 
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     matrix_size = 5
     matrix = [[0.0 for _ in range(matrix_size)] for _ in range(matrix_size)]
     result = None
+    history = load_history()
 
     if request.method == 'POST':
         try:
@@ -91,17 +123,33 @@ def index():
                     'value': value
                 }
 
+            # Сохраняем расчет в историю
+            save_calculation(matrix, result)
+            history = load_history()  # Обновляем историю
+
         except Exception as e:
             result = {
                 'error': f"Ошибка при решении игры: {str(e)}"
             }
 
-    # Возвращаем данные в шаблон
     return render_template('index.html',
-                           matrix=matrix,  # передаем обычную матрицу, а не NumPy
+                           matrix=matrix,
                            matrix_size=matrix_size,
-                           description=game_description,
-                           result=result)
+                           result=result,
+                           history=history)
+
+
+@app.route('/clear_history', methods=['POST'])
+def clear_history():
+    for filename in os.listdir(HISTORY_DIR):
+        file_path = os.path.join(HISTORY_DIR, filename)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception as e:
+            print(f"Ошибка при удалении файла {file_path}: {e}")
+    return redirect(url_for('index'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)
