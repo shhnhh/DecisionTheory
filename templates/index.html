@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Игра с нулевой суммой</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7fc;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        p {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 10px;
+            margin: 5px;
+            font-size: 1em;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        input[type="number"]:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+        .matrix-table {
+            margin: 20px 0;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .matrix-table th, .matrix-table td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .matrix-table th {
+            background-color: #f1f1f1;
+        }
+        .matrix-table td:first-child, .matrix-table th:first-child {
+            width: 40px;
+            font-weight: bold;
+        }
+        .saddle-cell {
+            background-color: #c8f7c5 !important;
+            font-weight: bold;
+        }
+        .result-section {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #e7f5e3;
+            border-radius: 8px;
+        }
+        .saddle-message {
+            background-color: #d2f8d2;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Матрица для игры с нулевой суммой</h1>
+    <p>{{ description }}</p>
+
+    <form method="post" id="matrixForm">
+        <label for="matrix_size">Размер матрицы (1-5):</label>
+        <input type="number" id="matrix_size" name="matrix_size" min="1" max="5" value="{{ matrix_size or 3 }}" onchange="updateMatrix()">
+        <br><br>
+
+        <table class="matrix-table" id="matrixTable">
+            <thead>
+                <tr>
+                    <th></th>
+                    {% for j in range(matrix_size) %}
+                        <th>{{ j + 1 }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in range(matrix_size) %}
+                    <tr>
+                        <th>{{ i + 1 }}</th>
+                        {% for j in range(matrix_size) %}
+                            {% set is_saddle = result.saddle_point and result.saddle_point.i == i and result.saddle_point.j == j %}
+                            <td class="{% if is_saddle %}saddle-cell{% endif %}">
+                                <input type="number" step="any" name="cell_{{i}}_{{j}}"
+                                       value="{{ matrix[i][j] }}">
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <br><br>
+        <button type="submit">Рассчитать</button>
+    </form>
+
+    {% if result %}
+        <div class="result-section">
+            <h2>Результаты:</h2>
+            {% if result.saddle_point %}
+                <div class="saddle-message">
+                    <p>Седловая точка найдена в ячейке ({{ result.saddle_point.i + 1 }}, {{ result.saddle_point.j + 1 }}) с значением {{ result.saddle_point.value }}</p>
+                </div>
+            {% endif %}
+            <p><strong>Стратегия игрока 1:</strong> {{ result.strategy1 | join(', ') }}</p>
+            <p><strong>Стратегия игрока 2:</strong> {{ result.strategy2 | join(', ') }}</p>
+            <p><strong>Значение игры:</strong> {{ result.game_value }}</p>
+        </div>
+    {% endif %}
+
+    {% if error %}
+        <p style="color: red;">Ошибка: {{ error }}</p>
+    {% endif %}
+</div>
+
+<script>
+    let matrixValues = {{ matrix | tojson }};  // Сохраняем текущие значения матрицы
+
+    function updateMatrix() {
+        // Получаем значение размера матрицы из поля ввода
+        var size = document.getElementById('matrix_size').value;
+
+        // Обновляем таблицу на клиенте, не отправляя форму
+        var table = document.getElementById('matrixTable');
+        var tbody = table.querySelector('tbody');
+        tbody.innerHTML = '';
+
+        // Генерируем строки таблицы
+        for (var i = 0; i < size; i++) {
+            var row = document.createElement('tr');
+            var th = document.createElement('th');
+            th.textContent = i + 1;
+            row.appendChild(th);
+
+            // Генерируем ячейки для каждого столбца
+            for (var j = 0; j < size; j++) {
+                var td = document.createElement('td');
+                var input = document.createElement('input');
+                input.type = 'number';
+                input.step = 'any';
+                input.name = 'cell_' + i + '_' + j;
+
+                // Проверяем, если для этой ячейки есть сохраненное значение
+                input.value = matrixValues[i] && matrixValues[i][j] ? matrixValues[i][j] : 0;  // Если есть — берем из matrixValues, если нет — 0
+                td.appendChild(input);
+                row.appendChild(td);
+            }
+
+            tbody.appendChild(row);
+        }
+    }
+
+    // Инициализация таблицы на основе начального размера
+    updateMatrix();
+</script>
+
+</body>
+</html>
