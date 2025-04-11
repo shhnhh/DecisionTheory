@@ -98,17 +98,24 @@
         <th>Значения</th>
     </tr>
     {% for strategy, values in item.result.items() %}
-        {% if strategy != 'game_value' and strategy != 'saddle_point' %}
-            <tr>
-                <td>{{ strategy }}</td>
-                <td>{{ values | join(', ') }}</td>
-            </tr>
-        {% endif %}
-    {% endfor %}
-    <tr>
-        <td><strong>Игра с природой (game_value)</strong></td>
-        <td>{{ item.result.game_value }}</td>
-    </tr>
+    {% if strategy != 'game_value' and strategy != 'saddle_point' %}
+        <tr>
+            <td>{{ strategy }}</td>
+            <td>
+                {% if values is mapping %}
+                    <ul style="margin: 0; padding-left: 20px;">
+                        {% for key, val in values.items() %}
+                            <li>{{ key }}: {{ val }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    {{ values }}
+                {% endif %}
+            </td>
+        </tr>
+    {% endif %}
+{% endfor %}
+
     {% if item.result.saddle_point %}
         <tr>
             <td><strong>Седловая точка</strong></td>

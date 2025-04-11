@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 import numpy as np
 from scipy.optimize import linprog
 import os
@@ -168,82 +168,93 @@ def nature_game():
     try:
         matrix_rows = int(request.form.get('matrix_rows', 4))
         matrix_cols = int(request.form.get('matrix_cols', 4))
-        matrix = []
+        alpha = float(request.form.get('alpha', 0.5))
+        criteria = request.form.getlist('criteria')
 
+        # Чтение матрицы
+        matrix = []
         for i in range(matrix_rows):
             row = []
             for j in range(matrix_cols):
-                value = request.form.get(f'cell_{i}_{j}', '0')
                 try:
-                    row.append(float(value))
+                    val = float(request.form.get(f'cell_{i}_{j}', '0'))
                 except ValueError:
-                    row.append(0.0)
+                    val = 0.0
+                row.append(val)
             matrix.append(row)
 
         matrix_np = np.array(matrix)
-        criteria = request.form.getlist('criteria')
-        alpha = float(request.form.get('alpha', 0.5))
+        print(matrix_np)
         result = {}
 
+        # === Критерий Вальда ===
         if 'wald' in criteria:
-            wald_values = np.min(matrix_np, axis=1)
-            wald_best = np.argmax(wald_values)
+            min_in_rows = np.min(matrix_np, axis=1)
+            wald_best_index = np.argmax(min_in_rows)
             result['wald'] = {
-                'values': [round(x, 4) for x in wald_values.tolist()],
-                'best_strategy': int(wald_best) + 1,
-                'best_value': round(float(wald_values[wald_best]), 4)
+                'values': [round(v, 4) for v in min_in_rows],
+                'best_strategy': int(wald_best_index) + 1,
+                'best_value': round(float(min_in_rows[wald_best_index]), 4)
             }
 
+        # === Критерий Сэвиджа ===
         if 'savage' in criteria:
-            regret_matrix = np.max(matrix_np, axis=0) - matrix_np
-            savage_values = np.max(regret_matrix, axis=1)
-            savage_best = np.argmin(savage_values)
+            column_maxes = np.max(matrix_np, axis=0)
+            regret_matrix = column_maxes - matrix_np
+            max_regrets = np.max(regret_matrix, axis=1)
+            savage_best_index = np.argmin(max_regrets)
             result['savage'] = {
-                'values': [round(x, 4) for x in savage_values.tolist()],
-                'best_strategy': int(savage_best) + 1,
-                'best_value': round(float(savage_values[savage_best]), 4)
+                'values': [round(v, 4) for v in max_regrets],
+                'best_strategy': int(savage_best_index) + 1,
+                'best_value': round(float(max_regrets[savage_best_index]), 4)
             }
 
+        # === Критерий Гурвица ===
         if 'hurwicz' in criteria:
-            min_vals = np.min(matrix_np, axis=1)
-            max_vals = np.max(matrix_np, axis=1)
-            hurwicz_values = alpha * max_vals + (1 - alpha) * min_vals
-            hurwicz_best = np.argmax(hurwicz_values)
+            row_mins = np.min(matrix_np, axis=1)
+            row_maxs = np.max(matrix_np, axis=1)
+            # alpha — степень пессимизма
+            hurwicz_values = alpha * row_mins + (1 - alpha) * row_maxs
+            hurwicz_best_index = np.argmax(hurwicz_values)
             result['hurwicz'] = {
-                'alpha': alpha,
-                'values': [round(x, 4) for x in hurwicz_values.tolist()],
-                'best_strategy': int(hurwicz_best) + 1,
-                'best_value': round(float(hurwicz_values[hurwicz_best]), 4)
+                'alpha': round(alpha, 2),
+                'values': [round(v, 4) for v in hurwicz_values],
+                'best_strategy': int(hurwicz_best_index) + 1,
+                'best_value': round(float(hurwicz_values[hurwicz_best_index]), 4)
             }
 
-        if 'laplace' in criteria:
-            laplace_values = np.mean(matrix_np, axis=1)
-            laplace_best = np.argmax(laplace_values)
-            result['laplace'] = {
-                'values': [round(x, 4) for x in laplace_values.tolist()],
-                'best_strategy': int(laplace_best) + 1,
-                'best_value': round(float(laplace_values[laplace_best]), 4)
-            }
-
+        # === Критерий Байеса (с равными вероятностями) ===
         if 'bayes' in criteria:
-            # Предположим равновероятные вероятности состояний
-            probabilities = np.ones(matrix_cols) / matrix_cols
-            bayes_values = matrix_np.dot(probabilities)
-            bayes_best = np.argmax(bayes_values)
+            probabilities = np.full(matrix_cols, 1 / matrix_cols)
+            expected_values = matrix_np @ probabilities
+            bayes_best_index = np.argmax(expected_values)
             result['bayes'] = {
-                'values': [round(x, 4) for x in bayes_values.tolist()],
-                'best_strategy': int(bayes_best) + 1,
-                'best_value': round(float(bayes_values[bayes_best]), 4),
-                'probabilities': [round(x, 4) for x in probabilities.tolist()]
+                'probabilities': [round(p, 4) for p in probabilities],
+                'values': [round(v, 4) for v in expected_values],
+                'best_strategy': int(bayes_best_index) + 1,
+                'best_value': round(float(expected_values[bayes_best_index]), 4)
             }
 
-        save_calculation(matrix, result, 'nature_game')
+        # === Критерий Лапласа ===
+        if 'laplace' in criteria:
+            average_rows = np.mean(matrix_np, axis=1)
+            laplace_best_index = np.argmax(average_rows)
+            result['laplace'] = {
+                'values': [round(v, 4) for v in average_rows],
+                'best_strategy': int(laplace_best_index) + 1,
+                'best_value': round(float(average_rows[laplace_best_index]), 4)
+            }
 
+        # (опционально) сохраняем результат
+        save_calculation(matrix, result, 'nature_game')
+        if request.method == "POST":
+            return jsonify(result)
         return render_template('nature_game.html',
                                matrix=matrix,
                                matrix_rows=matrix_rows,
                                matrix_cols=matrix_cols,
                                result=result)
+
     except Exception as e:
         return render_template('nature_game.html',
                                matrix=[],

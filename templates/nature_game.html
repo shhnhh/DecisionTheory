@@ -14,7 +14,6 @@
             color: #333;
             text-align: center;
         }
-
         .container {
             background-color: #fff;
             border-radius: 8px;
@@ -24,11 +23,9 @@
             width: 90%;
             max-width: 1100px;
         }
-
         h1, h2 {
             color: #4CAF50;
         }
-
         input[type="number"] {
             width: 60px;
             padding: 5px;
@@ -36,22 +33,18 @@
             border: 1px solid #ccc;
             border-radius: 4px;
         }
-
         .matrix-table {
             border-collapse: collapse;
             margin: 20px auto;
         }
-
         .matrix-table th, .matrix-table td {
             border: 1px solid #ddd;
             padding: 8px;
             min-width: 60px;
         }
-
         .scrollable-table {
             overflow-x: auto;
         }
-
         .button {
             background-color: #4CAF50;
             color: white;
@@ -62,7 +55,6 @@
             cursor: pointer;
             margin: 10px;
         }
-
         .result-block {
             margin-top: 20px;
             padding: 15px;
@@ -70,12 +62,35 @@
             border-radius: 5px;
             text-align: left;
         }
-
-        .criterion-result {
+        .result-card {
+            background-color: #ffffff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .result-card-header {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4CAF50;
             margin-bottom: 10px;
+        }
+        .result-card-body {
+            font-size: 16px;
+            color: #555;
+        }
+        .result-card pre {
+            background-color: #f1f3f5;
             padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .criterion-item {
+            margin-bottom: 10px;
+            padding: 8px;
             background-color: #e9ecef;
-            border-left: 4px solid #4CAF50;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -84,9 +99,7 @@
     <h1>Игра с природой</h1>
     <p>Анализ решений в условиях неопределенности с различными критериями</p>
 
-    <form method="post" id="natureGameForm" onsubmit="return validateCriteriaSelection()">
-        <input type="hidden" name="form_type" value="nature_game">
-
+    <form id="natureGameForm" onsubmit="return false;">
         <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-bottom: 20px;">
             <div>
                 <label>Строки:</label>
@@ -94,7 +107,7 @@
             </div>
             <div>
                 <label>Столбцы:</label>
-                <input type="number" id="natureCols" name="matrix_cols" value="7" min="1" max="10" onchange="updateNatureMatrix()">
+                <input type="number" id="natureCols" name="matrix_cols" value="4" min="1" max="10" onchange="updateNatureMatrix()">
             </div>
         </div>
 
@@ -102,31 +115,28 @@
             <h2 style="margin-top: 0;">Выбор критериев</h2>
             <p style="color: #555;">Отметьте критерии, по которым необходимо произвести анализ:</p>
             <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; max-width: 600px; margin: 0 auto;">
-                <label><input type="checkbox" name="criteria" value="wald"> Правило Вальда (пессимизм)</label>
-                <label><input type="checkbox" name="criteria" value="savage"> Правило Сэвиджа (минимальный риск)</label>
-                <label><input type="checkbox" name="criteria" value="hurwicz"> Правило Гурвица (оптимизм/пессимизм)</label>
-                <label><input type="checkbox" name="criteria" value="bayes"> Критерий Байеса (вероятностный подход)</label>
-                <label><input type="checkbox" name="criteria" value="laplace"> Критерий Лапласа (равные вероятности)</label>
+                <label><input type="checkbox" name="criteria" value="wald"> Правило Вальда</label>
+                <label><input type="checkbox" name="criteria" value="savage"> Правило Сэвиджа</label>
+                <label><input type="checkbox" name="criteria" value="hurwicz"> Правило Гурвица</label>
+                <label><input type="checkbox" name="criteria" value="bayes"> Критерий Байеса</label>
+                <label><input type="checkbox" name="criteria" value="laplace"> Критерий Лапласа</label>
             </div>
 
             <div id="hurwicz-alpha" style="display: none; margin-top: 15px;">
                 <label for="alpha"><strong>Параметр α (Гурвиц):</strong></label>
                 <input type="number" name="alpha" id="alpha" min="0" max="1" step="0.01" value="0.5"
                        style="margin-left: 10px; width: 80px;">
-                <p style="font-size: 14px; color: #666;">Чем ближе α к 1, тем более оптимистична стратегия.</p>
             </div>
         </div>
 
         <div class="scrollable-table" style="margin-top: 30px;">
             <table class="matrix-table">
-                <thead>
-                <tr id="natureHeaderRow"></tr>
-                </thead>
+                <thead><tr id="natureHeaderRow"></tr></thead>
                 <tbody id="natureMatrixBody"></tbody>
             </table>
         </div>
 
-        <button type="submit" class="button">Рассчитать</button>
+        <button type="submit" class="button" onclick="submitForm()">Рассчитать</button>
     </form>
 
     <div id="natureResults" class="result-block" style="display: none;">
@@ -137,76 +147,97 @@
 
 <script>
     function updateNatureMatrix() {
-        const rows = parseInt(document.getElementById('natureRows').value);
-        const cols = parseInt(document.getElementById('natureCols').value);
+        const rows = +document.getElementById('natureRows').value;
+        const cols = +document.getElementById('natureCols').value;
         const headerRow = document.getElementById('natureHeaderRow');
         const tableBody = document.getElementById('natureMatrixBody');
 
         headerRow.innerHTML = '<th></th>';
         for (let j = 0; j < cols; j++) {
-            headerRow.innerHTML += `<th>Столбец ${j + 1}</th>`;
+            headerRow.innerHTML += `<th>Состояние ${j + 1}</th>`;
         }
 
         tableBody.innerHTML = '';
         for (let i = 0; i < rows; i++) {
-            let rowHTML = `<tr><th>Строка ${i + 1}</th>`;
+            let rowHTML = `<tr><th>Альтернатива ${i + 1}</th>`;
             for (let j = 0; j < cols; j++) {
-                rowHTML += `<td><input type="number" step="any" name="cell_${i}_${j}" value="0"></td>`;
+                rowHTML += `<td><input type="number" step="any" name="cell_${i}_${j}" value="0" required></td>`;
             }
             rowHTML += '</tr>';
             tableBody.innerHTML += rowHTML;
         }
     }
 
-    function validateCriteriaSelection() {
-        const checked = document.querySelectorAll('input[name="criteria"]:checked');
-        if (checked.length === 0) {
-            alert("Пожалуйста, выберите хотя бы один критерий.");
-            return false;
-        }
-
-        processNatureGameForm();
-        return false;
-    }
-
-    function processNatureGameForm() {
+    async function submitForm() {
         const form = document.getElementById('natureGameForm');
         const formData = new FormData(form);
 
-        const results = {
-            wald: {optimalRow: 2, value: 15, criterion: "Вальда (максимин)"},
-            savage: {optimalRow: 3, value: 8, criterion: "Сэвиджа (минимаксный риск)"},
-            hurwicz: {optimalRow: 1, value: 22, criterion: "Гурвица (α=0.5)"},
-            bayes: {optimalRow: 2, value: 18, criterion: "Байеса"},
-            laplace: {optimalRow: 3, value: 20, criterion: "Лапласа"}
-        };
+        // собираем данные матрицы
+        const rows = +document.getElementById('natureRows').value;
+        const cols = +document.getElementById('natureCols').value;
+        const matrix = [];
+        for (let i = 0; i < rows; i++) {
+            const row = [];
+            for (let j = 0; j < cols; j++) {
+                row.push(formData.get(`cell_${i}_${j}`) || 0);
+            }
+            matrix.push(row);
+        }
 
-        let resultsHTML = '';
-        const checkedCriteria = Array.from(document.querySelectorAll('input[name="criteria"]:checked')).map(c => c.value);
+        // Добавляем данные матрицы в formData
+        formData.append('matrix', JSON.stringify(matrix));
 
-        checkedCriteria.forEach(criterion => {
-            if (results[criterion]) {
-                resultsHTML += `
-                    <div class="criterion-result">
-                        <strong>Критерий ${results[criterion].criterion}:</strong><br>
-                        Оптимальная стратегия: Строка ${results[criterion].optimalRow}<br>
-                        Значение: ${results[criterion].value}
+        try {
+            const response = await fetch('/nature_game', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (result.error) {
+                alert(result.error);
+                return;
+            }
+
+            const content = document.getElementById('natureResultsContent');
+            content.innerHTML = '';
+
+            // Обрабатываем каждый результат
+            for (const [key, value] of Object.entries(result)) {
+                let valueStr = '';
+
+                // Проверяем, если это объект, сериализуем его в строку
+                if (typeof value === 'object') {
+                    valueStr = JSON.stringify(value, null, 2);
+                } else {
+                    valueStr = value;
+                }
+
+                content.innerHTML += `
+                    <div class="result-card">
+                        <div class="result-card-header">${key}</div>
+                        <div class="result-card-body">
+                            <div class="criterion-item">
+                                <strong>Результат:</strong>
+                                <pre>${valueStr}</pre>
+                            </div>
+                        </div>
                     </div>
                 `;
             }
-        });
 
-        document.getElementById('natureResultsContent').innerHTML = resultsHTML;
-        document.getElementById('natureResults').style.display = 'block';
-        document.getElementById('natureResults').scrollIntoView({behavior: 'smooth'});
+            document.getElementById('natureResults').style.display = 'block';
+        } catch (err) {
+            console.error(err);
+            alert('Произошла ошибка при отправке формы.');
+        }
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', () => {
         updateNatureMatrix();
 
         const hurwiczCheckbox = document.querySelector('input[value="hurwicz"]');
         const alphaBlock = document.getElementById('hurwicz-alpha');
-
         document.querySelectorAll('input[name="criteria"]').forEach(cb => {
             cb.addEventListener('change', () => {
                 alphaBlock.style.display = hurwiczCheckbox.checked ? 'block' : 'none';
