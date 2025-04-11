@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>История расчетов</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7fc;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            text-align: center;
+        }
+
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin: 0 auto;
+            width: 90%;
+            max-width: 1100px;
+        }
+
+        h1, h2 {
+            color: #4CAF50;
+        }
+
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+
+        .history-block {
+            text-align: left;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .history-item {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .matrix-table {
+            margin-top: 20px;
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .matrix-table th, .matrix-table td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        .matrix-table th {
+            background-color: #f2f2f2;
+        }
+
+        .matrix-table td {
+            background-color: #fafafa;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>История расчетов</h1>
+    <p>Просмотр и управление историей выполненных расчетов</p>
+
+    <div class="history-block">
+        {% if history %}
+            {% for item in history %}
+                <div class="history-item">
+                    <h3>{{ item.title }}</h3>
+                    <p><strong>Дата:</strong> {{ item.timestamp }}</p>
+                    <p><strong>Результат:</strong></p>
+<table class="matrix-table">
+    <tr>
+        <th>Стратегия</th>
+        <th>Значения</th>
+    </tr>
+    {% for strategy, values in item.result.items() %}
+        {% if strategy != 'game_value' and strategy != 'saddle_point' %}
+            <tr>
+                <td>{{ strategy }}</td>
+                <td>{{ values | join(', ') }}</td>
+            </tr>
+        {% endif %}
+    {% endfor %}
+    <tr>
+        <td><strong>Игра с природой (game_value)</strong></td>
+        <td>{{ item.result.game_value }}</td>
+    </tr>
+    {% if item.result.saddle_point %}
+        <tr>
+            <td><strong>Седловая точка</strong></td>
+            <td>i: {{ item.result.saddle_point.i }}, j: {{ item.result.saddle_point.j }}, value: {{ item.result.saddle_point.value }}</td>
+        </tr>
+    {% endif %}
+</table>
+
+                    <p><strong>Матрица:</strong></p>
+
+                    <!-- Отображение матрицы в виде таблицы -->
+                    <table class="matrix-table">
+                        {% for row in item.matrix %}
+                            <tr>
+                                {% for cell in row %}
+                                    <td>{{ cell }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </table>
+
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>История пуста.</p>
+        {% endif %}
+    </div>
+
+    <form method="post">
+        <button type="submit" name="clear_history" class="button">Очистить историю</button>
+    </form>
+</div>
+
+<script>
+    function viewDetails(id) {
+        // Здесь будет код для просмотра деталей расчета
+        alert('Просмотр деталей расчета с ID: ' + id);
+    }
+</script>
+</body>
+</html>
