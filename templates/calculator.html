@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Калькулятор</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css"> <!-- Подключение общего стиля -->
+    <script src="script.js" defer></script> <!-- Подключение общего скрипта -->
+</head>
+<body>
+    <div class="container">
+        <h1>Калькулятор Пентагон</h1>
+        <p>Анализируйте стратегии в матричных играх. Найдите седловую точку или используйте симплекс-метод.</p>
+
+        <form method="post">
+            <label>Строки:</label>
+            <input type="number" name="matrix_rows" value="5" min="1" max="10" onchange="this.form.submit()">
+            <label>Столбцы:</label>
+            <input type="number" name="matrix_cols" value="5" min="1" max="10" onchange="this.form.submit()">
+            <div class="scrollable-table">
+                <table class="matrix-table">
+                    <thead>
+                    <tr>
+                        <th></th>
+                        {% for j in range(5) %}
+                            <th>Столбец {{ j+1 }}</th>
+                        {% endfor %}
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for i in range(5) %}
+                        <tr>
+                            <th>Строка {{ i+1 }}</th>
+                            {% for j in range(5) %}
+                                <td>
+                                    <input type="number" step="any" name="cell_{{i}}_{{j}}" value="0">
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <button type="submit" class="button">Рассчитать</button>
+        </form>
+
+        {% if calculator_result %}
+            <h3>Результат:</h3>
+            {% if calculator_result.error %}
+                <p style="color:red;">{{ calculator_result.error }}</p>
+            {% else %}
+                <p>Стратегия игрока 1: {{ calculator_result.strategy1 | join(', ') }}</p>
+                <p>Стратегия игрока 2: {{ calculator_result.strategy2 | join(', ') }}</p>
+                <p>Цена игры: {{ calculator_result.game_value }}</p>
+                {% if calculator_result.saddle_point %}
+                    <p class="saddle-point">Седловая точка: строка {{ calculator_result.saddle_point.i+1 }}, столбец {{ calculator_result.saddle_point.j+1 }}, значение: {{ calculator_result.saddle_point.value }}</p>
+                {% endif %}
+            {% endif %}
+        {% endif %}
+    </div>
+</body>
+</html>
