@@ -323,11 +323,6 @@ def history():
                            now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
-    return render_template('history.html',
-                           history=history_data,
-                           now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
-
 
 
 @app.route('/')
